@@ -5,8 +5,8 @@
  #import "sdk/objc/api/peerconnection/RTCVideoCodecInfo+Private.h"
  #import "sdk/objc/api/peerconnection/RTCVideoEncoderSettings+Private.h"
 +#import "sdk/objc/api/peerconnection/RTCRtpCodecParameters.h"
+ #import "sdk/objc/api/video_codec/RTCNativeVideoEncoderBuilder+Native.h"
  #import "sdk/objc/api/video_codec/RTCVideoCodecConstants.h"
- #import "sdk/objc/api/video_codec/RTCWrappedNativeVideoEncoder.h"
  #import "sdk/objc/helpers/NSString+StdString.h"
 @@ -30,6 +31,7 @@
  #include "modules/video_coding/include/video_error_codes.h"
