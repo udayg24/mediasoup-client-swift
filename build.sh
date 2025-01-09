@@ -152,11 +152,17 @@ export PATH=$WORK_DIR/depot_tools:$PATH
 # to make WebRTC builable, usable and properly configurable for iOS platform.
 function patchWebRTC() {
 	echo 'Patching WebRTC for iOS platform support'
+	
+	# First apply core dependency patches
+	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/abseil_optional.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/builtin_audio_decoder_factory.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/builtin_audio_encoder_factory.patch
-	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/sdp_video_format_utils.patch
+	
+	# Then apply SDK BUILD patches
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/sdk_BUILD.patch
-	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/abseil_optional.patch
+	
+	# Then apply header and implementation patches
+	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/sdp_video_format_utils.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/RTCPeerConnectionFactoryBuilder.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/audio_device_module_h.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/audio_device_module_mm.patch
@@ -165,6 +171,10 @@ function patchWebRTC() {
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/objc_video_encoder_factory_mm.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/video_decoder_factory_h.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/video_encoder_factory_h.patch
+	
+	# Ensure all changes are properly staged
+	cd $WEBRTC_DIR
+	git add .
 }
 
 # WebRTC sources are downloaded by git client from Depot tools.
@@ -178,47 +188,66 @@ function refetchWebRTC() {
 
 	export DEPOT_TOOLS_UPDATE=1
 	gclient root
+	
+	# Configure gclient with the WebRTC SDK repository
 	gclient config --spec \
-'solutions = [{
-	"name": "src",
-	"url": "https://webrtc.googlesource.com/src.git",
-	"deps_file": "DEPS",
-	"managed": False,
-	"custom_deps": {},
-}]
+'solutions = [
+	{
+		"name": "src",
+		"url": "https://github.com/webrtc-sdk/webrtc.git",
+		"deps_file": "DEPS",
+		"managed": False,
+		"custom_deps": {},
+		"custom_vars": {},
+	},
+]
 target_os = ["ios"]'
 
-	# Fetch WebRTC m120 version.
+	# Fetch WebRTC m120 version
 	gclient sync --no-history --revision src@branch-heads/6099
 
-	# Fetch all possible WebRTC versions so you can switch between them.
-	# Takes longer time and more disk space.
-	# gclient sync --nohooks --with_branch_heads --with_tags
-
-	# Checkout a new version for the first time
-	# cd $WORK_DIR/webrtc/src
-	# git reset --hard
-	# cd $WORK_DIR/webrtc/src/third_party
-	# git reset --hard
-	# cd $WORK_DIR/webrtc/src
-	# git checkout -b m112 refs/remotes/branch-heads/5615
-	# git checkout -b m120 refs/remotes/branch-heads/6099
-
-	# Switch to WebRTC version that already was checked out previously.
-	# git checkout m112
-	# git checkout m120
-
-	# Run hooks after switching between WebRTC versions.
-	# cd $WORK_DIR/webrtc/src
-	# gclient sync --no-history -D
+	# Ensure we're in the correct directory
+	cd $WORK_DIR/webrtc/src
+	
+	# Run hooks after initial sync
+	gclient sync --no-history -D
 }
 
 function resetWebRTC() {
+	echo "Resetting WebRTC to clean state..."
+	
+	# First configure gclient at the webrtc root
+	cd $WORK_DIR/webrtc
+	gclient config --spec \
+'solutions = [
+	{
+		"name": "src",
+		"url": "https://github.com/webrtc-sdk/webrtc.git",
+		"deps_file": "DEPS",
+		"managed": False,
+		"custom_deps": {},
+		"custom_vars": {},
+	},
+]
+target_os = ["ios"]'
+
+	# Then clean and reset the source
 	cd $WORK_DIR/webrtc/src
-	git reset --hard
+	git clean -fdx  # Remove all untracked files
+	git reset --hard HEAD  # Reset all tracked files
 	
 	cd $WORK_DIR/webrtc/src/third_party
-	git reset --hard
+	git clean -fdx
+	git reset --hard HEAD
+	
+	# Now revert and sync with gclient
+	cd $WORK_DIR/webrtc
+	gclient revert
+	gclient sync --no-history
+	
+	# Update clang
+	cd $WORK_DIR/webrtc/src
+	python3 tools/clang/scripts/update.py
 }
 
 if [ -d $WORK_DIR/webrtc ]
@@ -253,8 +282,8 @@ else
 fi
 
 # This patch should be applied only after WebRTC is already built.
-cd $WEBRTC_DIR
-git restore rtc_base/byte_order.h
+# cd $WEBRTC_DIR
+# git restore rtc_base/byte_order.h
 
 echo 'Building WebRTC'
 cd $WEBRTC_DIR
