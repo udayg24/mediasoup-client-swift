@@ -152,16 +152,10 @@ export PATH=$WORK_DIR/depot_tools:$PATH
 # to make WebRTC builable, usable and properly configurable for iOS platform.
 function patchWebRTC() {
 	echo 'Patching WebRTC for iOS platform support'
-	
-	# First apply core dependency patches
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/abseil_optional.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/builtin_audio_decoder_factory.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/builtin_audio_encoder_factory.patch
-	
-	# Then apply SDK BUILD patches
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/sdk_BUILD.patch
-	
-	# Then apply header and implementation patches
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/sdp_video_format_utils.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/RTCPeerConnectionFactoryBuilder.patch
 	patch -b -p0 -d $WORK_DIR < $PATCHES_DIR/audio_device_module_h.patch
