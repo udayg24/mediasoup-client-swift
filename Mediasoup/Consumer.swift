@@ -44,6 +44,10 @@ public class Consumer {
 		return consumer.stats
 	}
 
+	public var rtpReceiver: RTCRtpReceiver {
+		return consumer.rtpReceiver
+	}
+
 	private let consumer: ConsumerWrapper
 
 	internal init(consumer: ConsumerWrapper, mediaKind: MediaKind) {

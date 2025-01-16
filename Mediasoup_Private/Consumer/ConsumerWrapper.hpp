@@ -10,6 +10,7 @@ namespace mediasoupclient {
 class ConsumerListenerAdapter;
 #endif
 
+@class RTCRtpReceiver;  // Forward declaration
 @class RTCMediaStreamTrack;
 @protocol ConsumerWrapperDelegate;
 
@@ -27,6 +28,7 @@ class ConsumerListenerAdapter;
 @property(nonatomic, nonnull, readonly, getter = appData) NSString *appData;
 @property(nonatomic, nonnull, readonly, getter = rtpParameters) NSString *rtpParameters;
 @property(nonatomic, nonnull, readonly, getter = stats) NSString *stats;
+@property(nonatomic, readonly) RTCRtpReceiver *rtpReceiver;
 
 #ifdef __cplusplus
 - (instancetype _Nullable)initWithConsumer:(mediasoupclient::Consumer *_Nonnull)consumer

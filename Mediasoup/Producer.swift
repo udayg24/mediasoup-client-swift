@@ -54,6 +54,10 @@ public class Producer {
 		return producer.stats
 	}
 
+	public var rtpSender: RTCRtpSender {
+		return producer.rtpSender
+	}
+
 	private let producer: ProducerWrapper
 
 	internal init(producer: ProducerWrapper, mediaKind: MediaKind) {
