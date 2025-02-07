@@ -1,6 +1,9 @@
 #import <Foundation/Foundation.h>
 #import <Producer.hpp>
 #import <WebRTC/RTCMediaStreamTrack.h>
+#import <WebRTC/RTCRtpSender.h>
+//#import <peerconnection/RTCPeerConnection+Private.h>
+//#import <peerconnection/RTCRtpSender+Private.h>
 #import "ProducerWrapper.hpp"
 #import "ProducerListenerAdapter.hpp"
 #import "ProducerListenerAdapterDelegate.h"
@@ -14,6 +17,7 @@
 @interface ProducerWrapper () <ProducerListenerAdapterDelegate> {
 	mediasoupclient::Producer *_producer;
 	ProducerListenerAdapter *_listenerAdapter;
+	RTCRtpSender *_rtpSender;
 }
 @property(nonatomic, nonnull, readwrite) RTCMediaStreamTrack *track;
 @end
@@ -23,6 +27,7 @@
 
 - (instancetype)initWithProducer:(mediasoupclient::Producer *_Nonnull)producer
 	mediaStreamTrack:(RTCMediaStreamTrack *_Nonnull)track
+	rtpSender:(RTCRtpSender *_Nonnull)sender
 	listenerAdapter:(ProducerListenerAdapter *_Nonnull)listenerAdapter {
 
 	self = [super init];
@@ -30,6 +35,7 @@
 	if (self != nil) {
 		_producer = producer;
 		_track = track;
+		_rtpSender = sender;
 		_listenerAdapter = listenerAdapter;
 		_listenerAdapter->delegate = self;
 	}
@@ -168,7 +174,25 @@
 	return nil;
 }
 
-#pragma mark - ProducerListenerAdapterDelegate methods
+- (RTCRtpSender *)rtpSender {
+	// Add debug logging to verify the state
+	// NSLog(@"Accessing RTCRtpSender in ProducerWrapper: %@", _rtpSender);
+	// NSLog(@"RTCRtpSender properties - senderId: %@, parameters: %@, track: %@, streamIds: %@", 
+	// 	  _rtpSender.senderId,
+	// 	  _rtpSender.parameters,
+	// 	  _rtpSender.track,
+	// 	  _rtpSender.streamIds);
+	
+	// Ensure the sender is properly initialized with all properties
+	if (_rtpSender) {
+		// Force update the track reference
+		_rtpSender.track = self.track;
+	}
+	
+	return _rtpSender;
+}
+
+#pragma mark - ProducerListenerAda pterDelegate methods
 
 - (void)onTransportClose:(ProducerListenerAdapter *_Nonnull)adapter {
 	if (adapter != _listenerAdapter) {

@@ -10,10 +10,10 @@ namespace mediasoupclient {
 class ProducerListenerAdapter;
 #endif
 
-@class RTCRtpSender;
 @class WrappedRTPParameters;
 @class RTCMediaStreamTrack;
 @protocol ProducerWrapperDelegate;
+@class RTCRtpSender;
 
 
 @interface ProducerWrapper : NSObject
@@ -29,11 +29,12 @@ class ProducerListenerAdapter;
 @property(nonatomic, nonnull, readonly, getter = appData) NSString *appData;
 @property(nonatomic, nonnull, readonly, getter = rtpParameters) NSString *rtpParameters;
 @property(nonatomic, nonnull, readonly, getter = stats) NSString *stats;
-@property(nonatomic, readonly) RTCRtpSender *rtpSender;
+@property(nonatomic, strong, readonly) RTCRtpSender *rtpSender;
 
 #ifdef __cplusplus
 - (instancetype _Nullable)initWithProducer:(mediasoupclient::Producer *_Nonnull)producer
 	mediaStreamTrack:(RTCMediaStreamTrack *_Nonnull)track
+	rtpSender:(RTCRtpSender *_Nonnull)sender
 	listenerAdapter:(ProducerListenerAdapter *_Nonnull)listenerAdapter;
 #endif
 

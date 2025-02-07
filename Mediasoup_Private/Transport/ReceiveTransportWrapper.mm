@@ -9,6 +9,7 @@
 #import "../Consumer/ConsumerWrapper.hpp"
 #import "../DataConsumer/DataConsumerListenerAdapter.hpp"
 #import "../DataConsumer/DataConsumerWrapper.hpp"
+#import <peerconnection/RTCRtpReceiver+Private.h>
 
 
 @interface ReceiveTransportWrapper () <ReceiveTransportListenerAdapterDelegate> {
@@ -89,48 +90,86 @@
 	}, error);
 }
 
-- (ConsumerWrapper *_Nullable)createConsumerWithId:(NSString *_Nonnull)consumerId
-	producerId:(NSString *_Nonnull)producerId
-	kind:(MediasoupClientMediaKind _Nonnull)kind
-	rtpParameters:(NSString *_Nonnull)rtpParameters
-	appData:(NSString *_Nullable)appData
-	error:(out NSError *__autoreleasing _Nullable *_Nullable)error {
-
+- (ConsumerWrapper *)createConsumerWithId:(NSString *)consumerId
+	producerId:(NSString *)producerId
+	kind:(NSString *)kind
+	rtpParameters:(NSString *)rtpParameters
+	appData:(NSString *)appData
+	error:(out NSError **)error {
+	
 	auto listenerAdapter = new ConsumerListenerAdapter();
-
 	return mediasoupTryWithResult(^ ConsumerWrapper * {
-		auto consumerIdString = std::string(consumerId.UTF8String);
-		auto producerIdString = std::string(producerId.UTF8String);
-		auto kindString = std::string(kind.UTF8String);
-
-		auto rtpParametersString = std::string(rtpParameters.UTF8String);
-		nlohmann::json rtpParametersJSON = nlohmann::json::parse(rtpParametersString);
-
-		nlohmann::json appDataJSON;
-		if (appData == nullptr) {
-			appDataJSON = nlohmann::json::object();
-		} else {
-			appDataJSON = nlohmann::json::parse(std::string(appData.UTF8String));
+		@try {
+			auto consumerIdString = std::string(consumerId.UTF8String);
+			auto producerIdString = std::string(producerId.UTF8String);
+			auto kindString = std::string(kind.UTF8String);
+			
+			// Validate RTP parameters JSON
+			auto rtpParametersString = std::string(rtpParameters.UTF8String);
+			nlohmann::json rtpParametersJSON;
+			try {
+				rtpParametersJSON = nlohmann::json::parse(rtpParametersString);
+				
+				// Ensure required fields exist
+				if (!rtpParametersJSON.contains("codecs") || 
+					!rtpParametersJSON.contains("encodings") ||
+					!rtpParametersJSON.contains("mid")) {
+					throw std::runtime_error("Missing required RTP parameters fields");
+				}
+			} catch (const std::exception& e) {
+				NSString *errorMsg = [NSString stringWithUTF8String:e.what()];
+				if (error) {
+					*error = [NSError errorWithDomain:@"MediasoupClientErrorDomain"
+											   code:3
+										   userInfo:@{NSLocalizedDescriptionKey: errorMsg}];
+				}
+				return nil;
+			}
+			
+			// Parse appData
+			nlohmann::json appDataJSON;
+			if (appData == nullptr) {
+				appDataJSON = nlohmann::json::object();
+			} else {
+				appDataJSON = nlohmann::json::parse(std::string(appData.UTF8String));
+			}
+			
+			auto consumer = self->_transport->Consume(
+				listenerAdapter,
+				consumerIdString,
+				producerIdString,
+				kindString,
+				&rtpParametersJSON,
+				appDataJSON
+			);
+			
+			auto nativeTrack = consumer->GetTrack();
+			rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> pTrack(nativeTrack);
+			auto track = [RTCMediaStreamTrack mediaTrackForNativeTrack:pTrack factory:self.pcFactory];
+			
+			// Create RTCRtpReceiver
+			webrtc::RtpReceiverInterface* nativeReceiver = consumer->GetRtpReceiver();
+			RTCRtpReceiver* receiver = nil;
+			if (nativeReceiver) {
+				rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiverRef(nativeReceiver);
+				receiver = [[RTCRtpReceiver alloc] initWithFactory:self.pcFactory 
+												nativeRtpReceiver:receiverRef];
+			}
+			
+			return [[ConsumerWrapper alloc]
+				initWithConsumer:consumer
+				mediaStreamTrack:track
+				rtpReceiver:receiver
+				listenerAdapter:listenerAdapter
+			];
+		} @catch (NSException *exception) {
+			if (error) {
+				*error = [NSError errorWithDomain:@"MediasoupClientErrorDomain"
+										   code:3
+									   userInfo:@{NSLocalizedDescriptionKey: exception.reason}];
+			}
+			return nil;
 		}
-
-		auto consumer = self->_transport->Consume(
-			listenerAdapter,
-			consumerIdString,
-			producerIdString,
-			kindString,
-			&rtpParametersJSON,
-			appDataJSON
-		);
-
-		auto nativeTrack = consumer->GetTrack();
-		rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> pTrack(nativeTrack);
-		auto track = [RTCMediaStreamTrack mediaTrackForNativeTrack:pTrack factory:self.pcFactory];
-
-		return [[ConsumerWrapper alloc]
-			initWithConsumer:consumer
-			track:track
-			listenerAdapter:listenerAdapter
-		];
 	}, ^ void {
 		delete listenerAdapter;
 	}, error);

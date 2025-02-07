@@ -162,7 +162,7 @@
 			pcOptions,
 			appDataJSON
 		);
-		auto transportWrapper = [[SendTransportWrapper alloc] initWithTransport:transport listenerAdapter:listenerAdapter];
+        auto transportWrapper = [[SendTransportWrapper alloc] initWithTransport:transport pcFactory:_pcFactory listenerAdapter:listenerAdapter];
 		return transportWrapper;
 	} catch(const std::exception &e) {
 		delete listenerAdapter;

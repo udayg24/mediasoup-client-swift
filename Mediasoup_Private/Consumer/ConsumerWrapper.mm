@@ -1,6 +1,8 @@
 #import <Foundation/Foundation.h>
 #import <Consumer.hpp>
 #import <WebRTC/RTCMediaStreamTrack.h>
+#import <WebRTC/RTCRtpReceiver.h>
+//#import <WebRTC/RTCPeerConnectionFactory.h>
 #import "ConsumerWrapper.hpp"
 #import "ConsumerListenerAdapter.hpp"
 #import "ConsumerListenerAdapterDelegate.h"
@@ -11,6 +13,7 @@
 @interface ConsumerWrapper () <ConsumerListenerAdapterDelegate> {
 	mediasoupclient::Consumer *_consumer;
 	ConsumerListenerAdapter *_listenerAdapter;
+	RTCRtpReceiver *_rtpReceiver;
 }
 @property(nonatomic, nonnull, readwrite) RTCMediaStreamTrack *track;
 @end
@@ -18,18 +21,19 @@
 
 @implementation ConsumerWrapper
 
-- (instancetype)initWithConsumer:(mediasoupclient::Consumer *_Nonnull)consumer
-	track:(RTCMediaStreamTrack *_Nonnull)track
-	listenerAdapter:(ConsumerListenerAdapter *_Nonnull)listenerAdapter {
+- (instancetype)initWithConsumer:(mediasoupclient::Consumer *)consumer
+    mediaStreamTrack:(RTCMediaStreamTrack *)track
+	rtpReceiver:(RTCRtpReceiver *)receiver
+	listenerAdapter:(ConsumerListenerAdapter *)listenerAdapter {
 
 	self = [super init];
 
 	if (self != nil) {
 		_consumer = consumer;
+		_track = track;
+		_rtpReceiver = receiver;
 		_listenerAdapter = listenerAdapter;
 		_listenerAdapter->delegate = self;
-
-		self.track = track;
 	}
 
 	return self;
@@ -92,6 +96,10 @@
 
 - (NSString *_Nullable)getStatsWithError:(out NSError *__autoreleasing _Nullable *_Nullable)error {
 	return nil;
+}
+
+- (RTCRtpReceiver *)rtpReceiver {
+	return _rtpReceiver;
 }
 
 #pragma mark - ProducerListenerAdapterDelegate methods

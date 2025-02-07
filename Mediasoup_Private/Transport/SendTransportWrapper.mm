@@ -1,32 +1,38 @@
 #import <Foundation/Foundation.h>
 #import <Transport.hpp>
-#import <WebRTC/RTCMediaStreamTrack.h>
-#import <WebRTC/RTCRtpEncodingParameters.h>
+//#import <WebRTC/RTCMediaStreamTrack.h>
+//#import <WebRTC/RTCRtpEncodingParameters.h>
 #import <peerconnection/RTCConfiguration+Private.h>
+#import <peerconnection/RTCRtpSender+Private.h>
 #import "SendTransportWrapper.hpp"
 #import "SendTransportListenerAdapter.hpp"
 #import "SendTransportWrapperDelegate.h"
 #import "../MediasoupClientError/MediasoupClientErrorHandler.h"
 #import "../Producer/ProducerListenerAdapter.hpp"
 #import "../Producer/ProducerWrapper.hpp"
+#import "../Device/DeviceWrapper.h"
+//#import <peerconnection/RTCRtpSender+Private.h>
 
 
 @interface SendTransportWrapper () <SendTransportListenerAdapterDelegate> {
 	mediasoupclient::SendTransport *_transport;
 	SendTransportListenerAdapter *_listenerAdapter;
 }
+@property(nonatomic, strong) RTCPeerConnectionFactory *pcFactory;
 @end
 
 
 @implementation SendTransportWrapper
 
 - (instancetype)initWithTransport:(mediasoupclient::SendTransport *_Nonnull)transport
+	pcFactory:(RTCPeerConnectionFactory *_Nonnull)pcFactory
 	listenerAdapter:(SendTransportListenerAdapter *_Nonnull)listenerAdapter {
 
 	self = [super init];
 
 	if (self != nil) {
 		_transport = (mediasoupclient::SendTransport *)transport;
+		_pcFactory = pcFactory;
 		_listenerAdapter = listenerAdapter;
 		_listenerAdapter->delegate = self;
 	}
@@ -178,7 +184,29 @@
 			codecJsonPtr,
 			appDataJson
 		);
-		return [[ProducerWrapper alloc] initWithProducer:producer mediaStreamTrack:mediaTrack listenerAdapter:listenerAdapter];
+
+		webrtc::RtpSenderInterface* nativeSender = producer->GetRtpSender();
+		RTCRtpSender* sender = nil;
+		if (nativeSender) {
+			rtc::scoped_refptr<webrtc::RtpSenderInterface> senderRef(nativeSender);
+			sender = [[RTCRtpSender alloc] initWithFactory:self.pcFactory 
+								  nativeRtpSender:senderRef];
+			
+			// Add debug logging
+		// 	NSLog(@"Created RTCRtpSender: %@", sender);
+		// 	NSLog(@"RTCRtpSender properties - senderId: %@, parameters: %@, track: %@, streamIds: %@", 
+		// 		  sender.senderId,
+		// 		  sender.parameters,
+		// 		  sender.track,
+		// 		  sender.streamIds);
+		 }
+		
+		return [[ProducerWrapper alloc]
+			initWithProducer:producer
+			mediaStreamTrack:mediaTrack
+			rtpSender:sender
+			listenerAdapter:listenerAdapter
+		];
 	}, ^ void {
 		delete listenerAdapter;
 	}, error);
